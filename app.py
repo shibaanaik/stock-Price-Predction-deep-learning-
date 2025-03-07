@@ -33,7 +33,7 @@ start_date = "2014-01-01"
 end_date = "2025-03-01"
 
 # Fetch Data
-st.title('📈 Google (GOOG) Stock Market Predictor')
+st.markdown("<h1 style='text-align: center; color: blue;'>📈 Google (GOOG) Stock Market Predictor</h1>", unsafe_allow_html=True)
 try:
     df = yf.download(stock, start=start_date, end=end_date)
 

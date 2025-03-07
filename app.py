@@ -14,13 +14,9 @@ st.markdown("""
         body {
             background-color: #f5f5f5;
         }
-        h1 {
-            color: blue !important;
+        h1, h2, h3, h4, h5, h6 {
+            color: black !important;
             text-align: center;
-            font-size: 36px;
-        }
-        h2 {
-            color: #333;
             font-weight: bold;
         }
         .stApp {

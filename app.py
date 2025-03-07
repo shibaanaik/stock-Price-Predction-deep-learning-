@@ -4,98 +4,109 @@ import yfinance as yf
 from keras.models import load_model
 import streamlit as st
 import matplotlib.pyplot as plt
-import seaborn as sns
 
-# Page Config
-st.set_page_config(page_title="GOOG Stock Predictor", layout="wide")
+# Load Model
+model = load_model('models/stock_predction_model.keras')
 
-# Custom CSS for Styling
+# Apply CSS Styles
 st.markdown("""
     <style>
         body {
             background-color: #f5f5f5;
         }
+        h1 {
+            color: blue !important;
+            text-align: center;
+            font-size: 36px;
+        }
+        h2 {
+            color: #333;
+            font-weight: bold;
+        }
         .stApp {
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            background-color: #ffffff;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# Load Model
-model = load_model('models/stock_predction_model.keras')
+# Styled Title
+st.markdown("<h1>📈 Google (GOOG) Stock Market Predictor</h1>", unsafe_allow_html=True)
 
-# Set Fixed Stock
+# Download Stock Data
 stock = "GOOG"
-start_date = "2014-01-01"
-end_date = "2025-03-01"
+start = '2014-01-01'
+end = '2025-03-01'
+df = yf.download(stock, start, end)
 
-# Fetch Data
-st.markdown("<h1 style='text-align: center; color: blue;'>📈 Google (GOOG) Stock Market Predictor</h1>", unsafe_allow_html=True)
-try:
-    df = yf.download(stock, start=start_date, end=end_date)
+# Stock Data Section
+st.markdown("### 📊 Stock Data")
+st.write(df)
 
-    if df.empty:
-        st.error("⚠️ No data found for GOOG. Please check the stock symbol.")
-    else:
-        st.subheader('Stock Data')
-        st.dataframe(df.tail(10))
+# Splitting Data
+df_train = pd.DataFrame(df.Close[0: int(len(df)*0.80)])
+df_test = pd.DataFrame(df.Close[int(len(df)*0.80): len(df)])
 
-        # Data Preprocessing
-        df_train = df['Close'].iloc[:int(len(df)*0.80)]
-        df_test = df['Close'].iloc[int(len(df)*0.80):]
+# Scaling Data
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler(feature_range=(0,1))
+pas_100_days = df_train.tail(100)
+df_test = pd.concat([pas_100_days, df_test], ignore_index=True)
+df_test_scale = scaler.fit_transform(df_test)
 
-        from sklearn.preprocessing import MinMaxScaler
-        scaler = MinMaxScaler(feature_range=(0,1))
+# Price vs MA50
+st.markdown("### 📈 Price vs MA50")
+ma_50_days = df.Close.rolling(50).mean()
+fig1 = plt.figure(figsize=(8,6))
+plt.plot(ma_50_days, 'r', label="MA 50 Days")
+plt.plot(df.Close, 'g', label="Stock Price")
+plt.legend()
+plt.show()
+st.pyplot(fig1)
 
-        past_100_days = df_train.tail(100)
-        df_test = pd.concat([past_100_days, df_test], ignore_index=True)
-        df_test_scaled = scaler.fit_transform(df_test.values.reshape(-1,1))
+# Price vs MA50 vs MA100
+st.markdown("### 📈 Price vs MA50 vs MA100")
+ma_100_days = df.Close.rolling(100).mean()
+fig2 = plt.figure(figsize=(8,6))
+plt.plot(ma_50_days, 'r', label="MA 50 Days")
+plt.plot(ma_100_days, 'b', label="MA 100 Days")
+plt.plot(df.Close, 'g', label="Stock Price")
+plt.legend()
+plt.show()
+st.pyplot(fig2)
 
-        # Moving Averages Visualization
-        st.subheader('📊 Moving Averages')
-        ma_50 = df['Close'].rolling(50).mean()
-        ma_100 = df['Close'].rolling(100).mean()
-        ma_200 = df['Close'].rolling(200).mean()
+# Price vs MA100 vs MA200
+st.markdown("### 📈 Price vs MA100 vs MA200")
+ma_200_days = df.Close.rolling(200).mean()
+fig3 = plt.figure(figsize=(8,6))
+plt.plot(ma_100_days, 'r', label="MA 100 Days")
+plt.plot(ma_200_days, 'b', label="MA 200 Days")
+plt.plot(df.Close, 'g', label="Stock Price")
+plt.legend()
+plt.show()
+st.pyplot(fig3)
 
-        fig, ax = plt.subplots(figsize=(12,6))
-        plt.plot(df['Close'], label='Closing Price', color='black')
-        plt.plot(ma_50, label='50-Day MA', color='red', linestyle='dashed')
-        plt.plot(ma_100, label='100-Day MA', color='blue', linestyle='dashed')
-        plt.plot(ma_200, label='200-Day MA', color='green', linestyle='dashed')
-        plt.xlabel('Date')
-        plt.ylabel('Stock Price')
-        plt.legend()
-        plt.grid(True)
-        st.pyplot(fig)
+# Preparing Data for Prediction
+x = []
+y = []
+for i in range(100, df_test_scale.shape[0]):
+    x.append(df_test_scale[i-100:i])
+    y.append(df_test_scale[i,0])
 
-        # Preparing Data for Prediction
-        x, y = [], []
-        for i in range(100, df_test_scaled.shape[0]):
-            x.append(df_test_scaled[i-100:i])
-            y.append(df_test_scaled[i, 0])
+x,y = np.array(x), np.array(y)
 
-        x, y = np.array(x), np.array(y)
+# Model Prediction
+predict = model.predict(x)
+s = 1/scaler.scale_
+predict = predict * s
+y = y * s
 
-        # Predictions
-        predictions = model.predict(x)
-        predictions = predictions * (1/scaler.scale_)
-        y = y * (1/scaler.scale_)
-
-        # Prediction Visualization
-        st.subheader('📉 Actual vs Predicted GOOG Stock Prices')
-        fig2, ax2 = plt.subplots(figsize=(12,6))
-        plt.plot(y, label="Actual Price", color='blue')
-        plt.plot(predictions, label="Predicted Price", color='red', linestyle='dashed')
-        plt.xlabel("Time")
-        plt.ylabel("Stock Price")
-        plt.legend()
-        plt.grid(True)
-        st.pyplot(fig2)
-
-        st.success("✅ Prediction complete!")
-
-except Exception as e:
-    st.error(f"⚠️ Error fetching GOOG stock data: {e}")
+# Prediction Graph
+st.markdown("### 🎯 Original Price vs Predicted Price")
+fig4 = plt.figure(figsize=(8,6))
+plt.plot(predict, 'r', label='Predicted Price')
+plt.plot(y, 'g', label='Actual Price')
+plt.xlabel('Time')
+plt.ylabel('Price')
+plt.legend()
+plt.show()
+st.pyplot(fig4)

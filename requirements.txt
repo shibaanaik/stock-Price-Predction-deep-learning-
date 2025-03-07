@@ -2,6 +2,7 @@ yfinance
 pandas
 numpy
 matplotlib
+seaborn
 tensorflow
 keras
 scikit-learn
